@@ -22,10 +22,10 @@ df <- df %>% select(-c("listing_url", "host_url", "host_thumbnail_url", "host_pi
       
 # - Host name and Host location are not useful for predicting price, host neighbourhood and neighbourhood are unstructured duplicates of neibourhood cleansed variable (which is kept).
 # - Historical scrape data is not useful for predicting price, as it only shows when data was last pulled
-# - Additionally, name, description, neighbourhood overview, and host about variables are unstructured free-text, making them less relevant without the use of advanced NLP techniques, which is outside the scope of this essay.
+# - Additionally, description, neighbourhood overview, and host about variables are unstructured free-text, making them less relevant without the use of advanced NLP techniques, which is outside the scope of this essay.
 
 df <- df %>% select(-c("host_name", "host_location", "host_neighbourhood", "neighbourhood", "calendar_last_scraped", "last_scraped", 
-                       "name", "description", "neighborhood_overview","host_about"))
+                      "description", "neighborhood_overview","host_about")) # Name variable is kept for the sake of data exploration using text analysis
 
 # - We can also remove the IDs as these are just identifiers so they dont provide predictive value in our ML model
 df <- df %>% select(-"id", -"host_id")
@@ -60,7 +60,6 @@ df$has_availability <- as.factor(df$has_availability)
 
 ### Price: 
 df$price <- as.numeric(gsub("[$,]", "", df$price))
-df <- df %>% rename(`price ($)` = price) # Changed the column name to carry the currency information
 
 
 ### Special Cases
