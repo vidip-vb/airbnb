@@ -163,5 +163,5 @@ df$host_response_time <- factor(df$host_response_time,
 str(df)  # Verify correct data types
 summary(df)  # Quick stats to check missing values and distribution
 
-write.csv(df, "final_cleaned_london_airbnb.csv", row.names = FALSE)
+write.csv(df, "Cleaned_London.csv", row.names = FALSE)
 
