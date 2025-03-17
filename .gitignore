@@ -1,0 +1,11 @@
+# Ignore unnecessary R files
+.RData
+.Rhistory
+.Rproj.user/
+
+# Ignore dataset files
+*.csv
+*.gz
+
+# Ignore R project file
+*.Rproj
