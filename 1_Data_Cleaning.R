@@ -159,7 +159,25 @@ df$host_response_time <- factor(df$host_response_time,
 # - This means that 4 indicates the slowest response and 1 indicates the quickest.
 
 
-# Step 6: Final Checks and Final Cleaned File
+# Step 6: Removing Price Outliers
+
+# Computing IQR for price
+Q1 <- quantile(df$price, 0.25, na.rm = TRUE)  # 25th percentile
+Q3 <- quantile(df$price, 0.75, na.rm = TRUE)  # 75th percentile
+IQR_value <- Q3 - Q1  # Interquartile range
+
+# Defining bounds for outliers
+lower_bound <- Q1 - (1.5 * IQR_value)
+upper_bound <- Q3 + (1.5 * IQR_value)
+
+# Filtering the data (keeping values within bounds)
+df <- df %>% filter(price >= lower_bound & price <= upper_bound)
+
+# Checking price variable to confirm that extreme values are removed
+summary(df$price)  
+
+
+# Step 7: Final Checks and Final Cleaned File
 str(df)  # Verify correct data types
 summary(df)  # Quick stats to check missing values and distribution
 
