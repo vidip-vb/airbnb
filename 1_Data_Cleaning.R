@@ -1,56 +1,57 @@
-rm(list = ls())
+# Data Cleaning #
 
-# Loading Libraries
+cat("\014")   
+rm(list = ls())  
+
 library(tidyverse)
 library(tidytext)
 library(lubridate)  # For date filtering
 
-# Loading the dataset
 df <- read.csv("London.csv.gz")
 
-# Subtitle: Data Filtering & Cleaning
+## 1. Data Filtering & Cleaning
 
-# Step 1: Filtering for the Last Trimester (Sep–Dec 2024)
+# 1.1 Filtering for the Last Trimester (Sep–Dec 2024)
 df <- df %>%
   filter(ymd(last_scraped) >= ymd("2024-09-01"))  # This keeps the listings scraped from September onwards
 
-# Step 2: Dropping Irrelevant Columns
+# 1.2 Dropping Irrelevant Columns
 # - URLs, images and metadeta provide no predictive value for price variable
 # - 'license' and 'neighbourhood_group_cleansed' columns is empty in this dataset.
 df <- df %>% select(-c("listing_url", "host_url", "host_thumbnail_url", "host_picture_url", "picture_url",
                        "calendar_updated", "scrape_id", "source", "license", "neighbourhood_group_cleansed"))
-      
+
 # - Host name and Host location are not useful for predicting price, host neighbourhood and neighbourhood are unstructured duplicates of neibourhood cleansed variable (which is kept).
 # - Historical scrape data is not useful for predicting price, as it only shows when data was last pulled
 # - Additionally, description, neighbourhood overview, and host about variables are unstructured free-text, making them less relevant without the use of advanced NLP techniques, which is outside the scope of this essay.
 
-df <- df %>% select(-c("host_name", "host_location", "host_neighbourhood", "neighbourhood", "calendar_last_scraped", "last_scraped", 
-                      "description", "neighborhood_overview","host_about")) # Name variable is kept for the sake of data exploration using text analysis
+df <- df %>% select(-c("name", "host_name", "host_location", "host_neighbourhood", "neighbourhood", "calendar_last_scraped", "last_scraped", 
+                       "description", "neighborhood_overview","host_about", "longitude","latitude")) # Name variable is kept for the sake of data exploration using text analysis
 
 # - We can also remove the IDs as these are just identifiers so they dont provide predictive value in our ML model
 df <- df %>% select(-"id", -"host_id")
 
-# Step 3: Manipulating Relevant Character Variables
+# 1.3 Manipulating Relevant Character Variables
 
-## Step 3.1: Checking for All Character String Variables
+# 1.3.1 Checking for All Character String Variables
 char_vars <- sapply(df, is.character)
 print("Character Variables in Dataset:")
 print(names(df)[char_vars])
 
-## Step 3.2: Converting Relevant Character Variables
+# 1.3.2 Converting Relevant Character Variables
 
-### Dates
-df$first_review <- ymd(df$first_review)
-df$last_review <- ymd(df$last_review)
-df$host_since <- ymd(df$host_since) 
-# - ymd() converts variables into date class objects that can be used in analysis.
+# 1.4 Dates
+df$host_since <- as.numeric(difftime(as.Date(df$host_since), as.Date("2000-01-01"), units = "days"))
+df$first_review <- as.numeric(difftime(as.Date(df$first_review), as.Date("2000-01-01"), units = "days"))
+df$last_review <- as.numeric(difftime(as.Date(df$last_review), as.Date("2000-01-01"), units = "days"))
+# - since features like last_review have many different dates, using as a categorical variable would be unfeasible (because of large no. of dummies). Instead they are converted to numeric 'since' features where it uses days as units.
 
-### Percentages
+# 1.5 Percentages
 df$host_response_rate <- as.numeric(gsub("%", "", df$host_response_rate)) / 100
 df$host_acceptance_rate <- as.numeric(gsub("%", "", df$host_acceptance_rate)) / 100
 # - These percentages were stored as strings, so we remove the % and convert it to its decimal equivalence.
 
-### (Boolean) T/F Variables to Categorical (Factor) Variables 
+# 1.6 (Boolean) T/F Variables to Categorical (Factor) Variables 
 df$host_is_superhost <- as.factor(df$host_is_superhost)
 df$host_response_time <- as.factor(df$host_response_time)
 df$host_has_profile_pic <- as.factor(df$host_has_profile_pic)
@@ -58,12 +59,12 @@ df$host_identity_verified <- as.factor(df$host_identity_verified)
 df$instant_bookable <- as.factor(df$instant_bookable)
 df$has_availability <- as.factor(df$has_availability)
 
-### Price: 
+# 1.7 Price: 
 df$price <- as.numeric(gsub("[$,]", "", df$price))
 
 
-### Special Cases
-#### 1. Host verifications act as a trust indicator, broken up into a list of verification methods (e.g., emails, phone, gov't id). Some listings have more verifications which may act as more trustworthiness. So it may be important to keep this variable.
+# 1.8 Special Cases
+# 1.8.1 Host verifications act as a trust indicator, broken up into a list of verification methods (e.g., emails, phone, gov't id). Some listings have more verifications which may act as more trustworthiness. So it may be important to keep this variable.
 # - To convert the text from format '[...], [...], ...' into one that is more useful for the purpose of models, they are seperated and transformed into binary indicators.
 df$email_verified <- grepl("email", df$host_verifications)
 df$phone_verified <- grepl("phone", df$host_verifications)
@@ -73,14 +74,14 @@ df$photographer_verified <- grepl("photographer", df$host_verifications) # - Thi
 # - Therefore, we can drop the original text column
 df <- df %>% select(-host_verifications)
 
-#### 2. Neighbourhood Cleansed contains London district names as a categorical variable. ML models handle this well as a factor (ie. The variable is converted into a factor w/ 33 levels "Barking and Dagenham","Barnet", etc.)
+# 1.8.2 Neighbourhood Cleansed contains London district names as a categorical variable. ML models handle this well as a factor (ie. The variable is converted into a factor w/ 33 levels "Barking and Dagenham","Barnet", etc.)
 df$neighbourhood_cleansed <- as.factor(df$neighbourhood_cleansed)
 
-#### 3. Room Types
+# 1.8.3 Room Types
 # - There are 4 total types of rooms in this variable (entire home/apt, private room, shared room, hotel room), so it can be made into a categorical (factor) variable
 df$room_type <- as.factor(df$room_type)
 
-#### 4. Property Types
+# 1.8.4 Property Types
 # - This is a bit more tricky to manage since there are ideas that overlap and its not as limited (~98 total options). Analysing the frequency of each property type, will show which are the most common and rare property types.
 table(df$property_type) %>% sort(decreasing = TRUE)
 
@@ -98,16 +99,16 @@ df$property_type_grouped <- as.factor(df$property_type_grouped)
 df <- df %>% select(-property_type) # Can now remove the original property type column 
 
 
-#### 5. Bathrooms Text
+# 1.8.5 Bathrooms Text
 # - This describes bathroom count or type but it is stored as a string of text. To convert it into a numeric format, the orignial column is dropped and numerical values are assigned to the number of values. 
 df$bathrooms_text <- ifelse(df$bathrooms_text == "Half-bath", 0.5, 
-                       as.numeric(gsub("[^0-9.]", "", df$bathrooms_text))) #half-bath is converted to 0.5 and gsub removes non-numeric characters for the rest of the assignments
+                            as.numeric(gsub("[^0-9.]", "", df$bathrooms_text))) #half-bath is converted to 0.5 and gsub removes non-numeric characters for the rest of the assignments
 
 df$bathrooms[is.na(df$bathrooms)] <- df$bathrooms_text[is.na(df$bathrooms)]
 # - This replaces the missing values in bathroom with information from bathroom text, allowing us to delete the batroom_text variable
 df <- df %>% select(-bathrooms_text)
 
-#### 6. Amenities
+# 1.8.6 Amenities
 # - This free-text column contains comma-separated lists of features available in the listing (eg. Wifi, Kitchen, Heating, etc.) 
 # - For a start, the Amenities column is cleaned
 df$amenities <- as.character(df$amenities)
@@ -149,7 +150,7 @@ for (category in names(amenity_categories)) {
 df <- df %>% select(-amenities)
 
 
-#### 7. Host Reponse Time
+# 1.8.7 Host Reponse Time
 # - shows how quicly the host reponds in a string format (eg. within a few hours, within a day, etc.)
 # - We can convert this into a variabel with orderedd numerical values and since there are only 4 possible values, this is quite reasonable.
 df$host_response_time <- factor(df$host_response_time, 
@@ -159,25 +160,25 @@ df$host_response_time <- factor(df$host_response_time,
 # - This means that 4 indicates the slowest response and 1 indicates the quickest.
 
 
-# Step 6: Removing Price Outliers
+# 1.9 Removing Price Outliers
 
-# Computing IQR for price
+# 1.9.1 Computing IQR for price
 Q1 <- quantile(df$price, 0.25, na.rm = TRUE)  # 25th percentile
 Q3 <- quantile(df$price, 0.75, na.rm = TRUE)  # 75th percentile
 IQR_value <- Q3 - Q1  # Interquartile range
 
-# Defining bounds for outliers
+# 1.9.2 Defining bounds for outliers
 lower_bound <- Q1 - (1.5 * IQR_value)
 upper_bound <- Q3 + (1.5 * IQR_value)
 
-# Filtering the data (keeping values within bounds)
+# 1.9.3 Filtering the data (keeping values within bounds)
 df <- df %>% filter(price >= lower_bound & price <= upper_bound)
 
-# Checking price variable to confirm that extreme values are removed
+# - Checking price variable to confirm that extreme values are removed
 summary(df$price)  
 
 
-# Step 7: Final Checks and Final Cleaned File
+## 2. Final Checks and Final Cleaned File
 str(df)  # Verify correct data types
 summary(df)  # Quick stats to check missing values and distribution
 
