@@ -1,0 +1,19 @@
+# Ignore unnecessary R files
+.RData
+.Rhistory
+.Rproj.user/
+
+# Ignore dataset files
+*.csv
+*.gz
+
+# Ignore R project file
+*.Rproj
+
+echo '*.Rmd' >> .gitignore
+echo '*.pdf' >> .gitignore
+echo '*.docx' >> .gitignore
+echo '*~*' >> .gitignore
+echo 'header.tex' >> .gitignore
+echo '.DS_Store' >> .gitignore
+echo 'EC349*' >> .gitignore
